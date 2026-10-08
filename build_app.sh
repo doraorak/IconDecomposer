@@ -1,14 +1,14 @@
 #!/bin/bash
-# Builds IconDecompositor.app; installs it to /Applications unless --no-install is given.
+# Builds IconDecomposer.app; installs it to /Applications unless --no-install is given.
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP="$DIR/build/IconDecompositor.app"
+APP="$DIR/build/IconDecomposer.app"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
-swiftc -parse-as-library -O "$DIR"/Sources/*.swift -o "$APP/Contents/MacOS/IconDecompositor"
+swiftc -parse-as-library -O "$DIR"/Sources/*.swift -o "$APP/Contents/MacOS/IconDecomposer"
 cp "$DIR/icon/AppIcon.icns" "$APP/Contents/Resources/"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
@@ -16,9 +16,9 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleExecutable</key><string>IconDecompositor</string>
-    <key>CFBundleIdentifier</key><string>${BUNDLE_ID:-com.doraorak.IconDecompositor}</string>
-    <key>CFBundleName</key><string>Icon Decompositor</string>
+    <key>CFBundleExecutable</key><string>IconDecomposer</string>
+    <key>CFBundleIdentifier</key><string>${BUNDLE_ID:-com.doraorak.IconDecomposer}</string>
+    <key>CFBundleName</key><string>Icon Decomposer</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>1.0</string>
     <key>CFBundleVersion</key><string>1</string>
@@ -32,7 +32,7 @@ PLIST
 if [[ "${1:-}" == "--no-install" ]]; then
     echo "Built $APP"
 else
-    rm -rf /Applications/IconDecompositor.app
+    rm -rf /Applications/IconDecomposer.app
     cp -R "$APP" /Applications/
-    echo "Installed /Applications/IconDecompositor.app"
+    echo "Installed /Applications/IconDecomposer.app"
 fi

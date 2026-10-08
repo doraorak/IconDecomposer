@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var model = DecompositorViewModel()
+    @StateObject private var model = DecomposerViewModel()
 
     var body: some View {
         Group {
@@ -117,7 +117,7 @@ private struct Badge: View {
 private func count(_ n: Int, _ noun: String) -> String { "\(n) \(noun)\(n == 1 ? "" : "s")" }
 
 private struct ResultsView: View {
-    @ObservedObject var model: DecompositorViewModel
+    @ObservedObject var model: DecomposerViewModel
 
     var body: some View {
         VStack(spacing: 0) {
@@ -181,7 +181,7 @@ private struct Checkerboard: View {
 
 private struct LayerCard: View {
     let layer: Layer
-    @ObservedObject var model: DecompositorViewModel
+    @ObservedObject var model: DecomposerViewModel
 
     var body: some View {
         VStack(spacing: 10) {

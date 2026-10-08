@@ -3,7 +3,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 @MainActor
-final class DecompositorViewModel: ObservableObject {
+final class DecomposerViewModel: ObservableObject {
     @Published var sourceURL: URL?
     @Published var appName = ""
     @Published var sourceAppIcon: NSImage?
@@ -27,7 +27,7 @@ final class DecompositorViewModel: ObservableObject {
         isProcessing = true
 
         let outDir = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("IconDecompositor_\(UUID().uuidString)")
+            .appendingPathComponent("IconDecomposer_\(UUID().uuidString)")
         Task {
             do {
                 let result = try await Task.detached { try Decomposer.run(on: url, outputDir: outDir) }.value
