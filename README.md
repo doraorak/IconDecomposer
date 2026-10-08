@@ -15,7 +15,7 @@ Drop in an `.app` (or an `Assets.car`) and Icon Decomposer splits its icon into 
 - **Open in Icon Composer.** The icon is rebuilt as an Apple `.icon` bundle (groups, layer order, blend modes, opacity, translucency, specular, shadows, background fill) and opened in Icon Composer, so you can start from the original and change it. Each launch works on a throwaway copy, so Icon Composer's autosaves never touch the extraction. Make sure to save your work by using "save as" action.
 - **Extract the original layers.** Every layer is saved as a 1024×1024 transparent PNG, and as the original **vector SVG** where the icon uses one. Save layers one by one, drag them into Finder, copy them, or **Export All…** into a folder together with the `.icon` bundle.
 
-<p align="center"><img src="docs/extractor.png" alt="System Settings decomposed into its four layers" width="860"></p>
+<p align="center"><img src="docs/extractor.png" alt="Stocks decomposed into its seven layers" width="860"></p>
 
 The `.icon` it produces opens straight in Icon Composer:
 
