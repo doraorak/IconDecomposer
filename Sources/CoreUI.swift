@@ -25,10 +25,10 @@ final class CoreUICatalog {
             return data as Data
         }
 
-        func rasterize(size: Int) -> NSBitmapImageRep? {
+        func rasterize(width: Int, height: Int) -> NSBitmapImageRep? {
             guard let drawSVG = CoreUICatalog.drawSVG, let rep = NSBitmapImageRep(
-                bitmapDataPlanes: nil, pixelsWide: size, pixelsHigh: size, bitsPerSample: 8, samplesPerPixel: 4,
-                hasAlpha: true, isPlanar: false, colorSpaceName: .calibratedRGB, bytesPerRow: size * 4, bitsPerPixel: 32),
+                bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height, bitsPerSample: 8, samplesPerPixel: 4,
+                hasAlpha: true, isPlanar: false, colorSpaceName: .calibratedRGB, bytesPerRow: width * 4, bitsPerPixel: 32),
                   let context = NSGraphicsContext(bitmapImageRep: rep) else { return nil }
             NSGraphicsContext.saveGraphicsState()
             defer { NSGraphicsContext.restoreGraphicsState() }

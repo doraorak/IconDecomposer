@@ -204,7 +204,7 @@ enum Decomposer {
                     try writePNG(NSBitmapImageRep(cgImage: cg), to: png)
                     kind = .image
                 case .vector(let doc)?:
-                    if let data = doc.svgData(), let rep = doc.rasterize(size: size) {
+                    if let data = doc.svgData(), let (w, h) = viewBoxSize(of: data), let rep = doc.rasterize(width: w, height: h) {
                         try data.write(to: svg)
                         try writePNG(rep, to: png)
                         kind = .vector
@@ -236,6 +236,14 @@ enum Decomposer {
     }
 
     // MARK: Pixels
+
+    /// The SVG's own canvas size, which is the size its layer is drawn at before scaling.
+    private static func viewBoxSize(of svg: Data) -> (Int, Int)? {
+        guard let text = String(data: svg, encoding: .utf8),
+              let range = text.range(of: #"viewBox="[^"]*""#, options: .regularExpression) else { return nil }
+        let numbers = text[range].dropFirst(9).dropLast().split(whereSeparator: { " ,".contains($0) }).compactMap { Double($0) }
+        return numbers.count == 4 && numbers[2] >= 1 && numbers[3] >= 1 ? (Int(numbers[2].rounded()), Int(numbers[3].rounded())) : nil
+    }
 
     /// Grayscale, gray+alpha, RGB or RGBA components -> [r, g, b, a].
     private static func rgba(_ components: [Double]) -> [Double] {
