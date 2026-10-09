@@ -122,17 +122,24 @@ enum Decomposer {
         return candidates.first(where: isDefault) ?? candidates.first
     }
 
-    /// The stack's layers as groups, bottom to top.
+    /// The stack's layers as groups, bottom to top. A group's layers come from its catalog entry, its glass
+    /// settings (specular, shadow, translucency, blur) from the stack's entry for the same appearance.
     private static func collectGroups(_ stack: Item, appearance: String, groupVariants: [String: [String: Item]]) -> [LayerGroup] {
+        let stackEntries = (stack["Layers"] as? [Item] ?? []).filter { $0["AssetType"] as? String == "IconGroup" }
+        let preferred = [appearance] + defaultAppearances
+        func pick(_ variants: [String: Item]) -> Item {
+            preferred.lazy.compactMap { variants[$0] }.first ?? variants.sorted { $0.key < $1.key }.first?.value ?? [:]
+        }
         var seen = Set<String>()
         return (stack["Layers"] as? [Item] ?? []).compactMap { item in
             guard let name = item["Name"] as? String, seen.insert(name).inserted else { return nil }
             if item["AssetType"] as? String == "IconGroup" {
-                let variants = groupVariants[name] ?? [:]
-                let meta = ([appearance] + defaultAppearances).lazy.compactMap { variants[$0] }.first
-                    ?? variants.sorted { $0.key < $1.key }.first?.value ?? [:]
+                let meta = pick(groupVariants[name] ?? [:])
+                let settings = pick(Dictionary(stackEntries.filter { $0["Name"] as? String == name }.map {
+                    ($0["Appearance"] as? String ?? "default", $0)
+                }, uniquingKeysWith: { first, _ in first }))
                 let subs = (meta["Layers"] as? [Item] ?? []).filter { $0["Name"] is String && opacity($0) > 0 }
-                return subs.isEmpty ? nil : LayerGroup(name: groupName(name, subs: subs), meta: meta, subs: subs)
+                return subs.isEmpty ? nil : LayerGroup(name: groupName(name, subs: subs), meta: settings, subs: subs)
             }
             guard opacity(item) > 0 else { return nil }
             return LayerGroup(name: cleanName(name).capitalized, meta: item, subs: [item])

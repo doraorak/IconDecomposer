@@ -47,17 +47,18 @@ enum IconBundle {
             }
         }
         // Icon Composer lists layers front to back; CoreUI lists them back to front.
-        func layerEntries(_ group: LayerGroup, glass: Bool) -> [[String: Any]] {
+        func layerEntries(_ group: LayerGroup, baseLayer: Bool = false) -> [[String: Any]] {
             group.subs.reversed().compactMap { sub in
                 guard let layer = (sub["Name"] as? String).flatMap({ byAsset[$0] }) else { return nil }
+                let glass = !baseLayer && ((sub["LayerHasLightingEffects"] as? NSNumber)?.boolValue ?? false)
                 return [
-                    "blend-mode": glass ? blendMode(sub["LayerBlendMode"]) : "normal",
+                    "blend-mode": blendMode(sub["LayerBlendMode"]),
                     "fill": "automatic",
                     "glass": glass,
                     "image-name": (layer.svg ?? layer.png).lastPathComponent,
                     "name": layer.name,
                     "opacity": number(sub, "LayerOpacity", 1),
-                    "position": ["scale": 1, "translation-in-points": [0, 0]],
+                    "position": position(of: sub, imageWidth: layer.width),
                 ]
             }
         }
@@ -75,9 +76,9 @@ enum IconBundle {
         }
 
         var entries = glassGroups.reversed().map {
-            groupEntry($0.name, layerEntries($0, glass: true), glass: true, meta: $0.meta)
+            groupEntry($0.name, layerEntries($0), glass: true, meta: $0.meta)
         }
-        if let basePlate { entries.append(groupEntry("Base", layerEntries(basePlate, glass: false), glass: false, meta: [:])) }
+        if let basePlate { entries.append(groupEntry("Base", layerEntries(basePlate, baseLayer: true), glass: false, meta: [:])) }
         entries = entries.filter { !($0["layers"] as! [Any]).isEmpty }
 
         let manifest: [String: Any] = [
@@ -94,21 +95,41 @@ enum IconBundle {
         ((dict[key] as? NSNumber)?.doubleValue).map { ($0 * 10_000).rounded() / 10_000 } ?? fallback
     }
 
+    /// The layer's frame in the 1024-point canvas (`LayerPosition` is its top-left corner) as scale plus offset from center.
+    private static func position(of layer: [String: Any], imageWidth: Int) -> [String: Any] {
+        let canvas = 1024.0
+        let origin = pair(layer["LayerPosition"]) ?? (0, 0), size = pair(layer["LayerSize"]) ?? (canvas, canvas)
+        let scale = imageWidth > 0 ? size.0 / Double(imageWidth) : 1
+        return ["scale": scale,
+                "translation-in-points": [origin.0 + size.0 / 2 - canvas / 2, origin.1 + size.1 / 2 - canvas / 2]]
+    }
+
+    private static func pair(_ raw: Any?) -> (Double, Double)? {
+        let parts = (raw as? String)?.split(separator: ",").compactMap { Double($0) }
+        return parts?.count == 2 ? (parts![0], parts![1]) : nil
+    }
+
     private static func blendMode(_ raw: Any?) -> String {
         let mode = (raw as? String ?? "normal").trimmingCharacters(in: .whitespaces).lowercased()
         let mapped = blendModes[mode] ?? mode
         return knownBlendModes.contains(mapped) ? mapped : "normal"
     }
 
+    /// A group's glass settings; keys the catalog doesn't carry stay off.
     private static func groupEntry(_ name: String, _ layers: [[String: Any]], glass: Bool, meta: [String: Any]) -> [String: Any] {
-        [
-            "name": name,
-            "lighting": "individual",
-            "specular": glass && ((meta["LayerHasSpecular"] as? NSNumber)?.boolValue ?? true),
-            "shadow": glass ? ["kind": "neutral", "opacity": number(meta, "LayerShadowOpacity", 0.35)]
-                            : ["kind": "none", "opacity": 0.0],
-            "translucency": ["enabled": glass, "value": glass ? number(meta, "LayerTranslucency", 0.35) : 0.0],
-            "layers": layers,
-        ]
+        var entry: [String: Any] = ["name": name, "lighting": "individual", "layers": layers]
+        guard glass else {
+            return entry.merging(["specular": false, "shadow": ["kind": "none", "opacity": 0.0],
+                                  "translucency": ["enabled": false, "value": 0.0]]) { $1 }
+        }
+        entry["specular"] = (meta["LayerHasSpecular"] as? NSNumber)?.boolValue ?? false
+        // LayerShadowStyle: 3 = layer-color, 2 = neutral (best effort; absent = no shadow).
+        entry["shadow"] = meta["LayerShadowStyle"] == nil
+            ? ["kind": "none", "opacity": 0.0]
+            : ["kind": (meta["LayerShadowStyle"] as? Int) == 3 ? "layer-color" : "neutral",
+               "opacity": min(1, number(meta, "LayerShadowOpacity", 0.5))]
+        entry["translucency"] = ["enabled": meta["LayerTranslucency"] != nil, "value": number(meta, "LayerTranslucency", 0)]
+        if meta["LayerBlurStrength"] != nil { entry["blur-material"] = number(meta, "LayerBlurStrength", 0) }
+        return entry
     }
 }
