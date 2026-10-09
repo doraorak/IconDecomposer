@@ -215,7 +215,8 @@ enum Decomposer {
 
             guard let kind, let rep = NSBitmapImageRep(data: (try? Data(contentsOf: png)) ?? Data()) else { continue }
             layers.append(ExtractedLayer(
-                item: item, name: name, assetName: asset, groupName: entry.group, png: png,
+                item: item, name: name, assetName: asset, groupName: entry.group,
+                fill: (item["LayerGradientColorName"] as? String).flatMap { layerFill($0, colors: colors, gradients: gradients) }, png: png,
                 svg: FileManager.default.fileExists(atPath: svg.path) ? svg : nil,
                 kind: kind, width: rep.pixelsWide, height: rep.pixelsHigh))
         }
@@ -230,7 +231,7 @@ enum Decomposer {
                   .max(by: { $0.pixelsWide < $1.pixelsWide }) else { return ([], []) }
         let png = dir.appendingPathComponent("00_app_icon.png")
         try writePNG(rep, to: png)
-        let layer = ExtractedLayer(item: [:], name: "App Icon", assetName: "AppIcon", groupName: "App Icon", png: png,
+        let layer = ExtractedLayer(item: [:], name: "App Icon", assetName: "AppIcon", groupName: "App Icon", fill: nil, png: png,
                                    svg: nil, kind: .image, width: rep.pixelsWide, height: rep.pixelsHigh)
         return ([layer], [LayerGroup(name: "App Icon", meta: [:], subs: [["Name": "AppIcon"]])])
     }
@@ -253,6 +254,20 @@ enum Decomposer {
         case 2: return [c[0], c[0], c[0], c[1]]
         default: return [c[0], c[1], c[2], c.count > 3 ? c[3] : 1]
         }
+    }
+
+    /// A layer's fill override: a named color, or a named gradient running top to bottom.
+    private static func layerFill(_ name: String, colors: [String: Item], gradients: [String: Item]) -> [String: Any]? {
+        func color(_ name: String) -> String? {
+            (colors[name]?["Color components"] as? [Double]).map { c in
+                let c = rgba(c)
+                return String(format: "display-p3:%.4f,%.4f,%.4f,%.4f", c[0], c[1], c[2], c[3])
+            }
+        }
+        if let solid = color(name) { return ["solid": solid] }
+        let stops = (gradients[name]?["Gradient Colors"] as? [String] ?? []).compactMap(color)
+        guard !stops.isEmpty else { return nil }
+        return ["linear-gradient": stops, "orientation": ["start": ["x": 0.5, "y": 0.0], "stop": ["x": 0.5, "y": 1.0]]]
     }
 
     private static func displayP3(_ c: [Double]) -> String {

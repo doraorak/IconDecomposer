@@ -6,6 +6,7 @@ struct ExtractedLayer {
     let name: String
     let assetName: String
     let groupName: String
+    let fill: [String: Any]?   // the layer's fill override, if the catalog has one
     let png: URL
     let svg: URL?
     let kind: Kind
@@ -53,7 +54,7 @@ enum IconBundle {
                 let glass = !baseLayer && ((sub["LayerHasLightingEffects"] as? NSNumber)?.boolValue ?? false)
                 return [
                     "blend-mode": blendMode(sub["LayerBlendMode"]),
-                    "fill": "automatic",
+                    "fill": layer.fill ?? "automatic",
                     "glass": glass,
                     "image-name": (layer.svg ?? layer.png).lastPathComponent,
                     "name": layer.name,
