@@ -12,6 +12,8 @@ struct Decomposition {
 enum Decomposer {
     private typealias Item = [String: Any]
     private static let aqua = "NSAppearanceNameAqua"
+    /// The appearances that make up an icon's default rendition (macOS calls it Aqua, iOS-style catalogs Light).
+    private static let defaultAppearances = [aqua, "UIAppearanceLight", "default"]
     private static let size = 1024
 
     struct Failure: LocalizedError {
@@ -110,21 +112,25 @@ enum Decomposer {
 
     private static func opacity(_ item: Item) -> Double { IconBundle.number(item, "LayerOpacity", 1) }
 
-    /// Prefers the stack named like the bundle icon, then the Aqua appearance.
+    /// The stack named like the bundle icon, preferring its default appearance over dark/tinted variants.
     private static func pickStack(_ stacks: [Item], iconName: String?) -> Item? {
         let named = stacks.filter { $0["Name"] as? String == iconName }
-        let isAqua: (Item) -> Bool = { $0["Appearance"] as? String == aqua }
-        return named.first(where: isAqua) ?? named.first ?? stacks.first(where: isAqua) ?? stacks.first
+        let candidates = named.isEmpty ? stacks : named
+        let isDefault: (Item) -> Bool = { stack in
+            (stack["Appearance"] as? String).map(defaultAppearances.contains) ?? true
+        }
+        return candidates.first(where: isDefault) ?? candidates.first
     }
 
     /// The stack's layers as groups, bottom to top.
-    private static func collectGroups(_ stack: Item, groupVariants: [String: [String: Item]]) -> [LayerGroup] {
+    private static func collectGroups(_ stack: Item, appearance: String, groupVariants: [String: [String: Item]]) -> [LayerGroup] {
         var seen = Set<String>()
         return (stack["Layers"] as? [Item] ?? []).compactMap { item in
             guard let name = item["Name"] as? String, seen.insert(name).inserted else { return nil }
             if item["AssetType"] as? String == "IconGroup" {
                 let variants = groupVariants[name] ?? [:]
-                let meta = variants[aqua] ?? variants["default"] ?? variants.values.first ?? [:]
+                let meta = ([appearance] + defaultAppearances).lazy.compactMap { variants[$0] }.first
+                    ?? variants.sorted { $0.key < $1.key }.first?.value ?? [:]
                 let subs = (meta["Layers"] as? [Item] ?? []).filter { $0["Name"] is String && opacity($0) > 0 }
                 return subs.isEmpty ? nil : LayerGroup(name: groupName(name, subs: subs), meta: meta, subs: subs)
             }
@@ -152,7 +158,8 @@ enum Decomposer {
         }
 
         guard let stack = pickStack(stacks, iconName: iconName) else { return ([], [], nil) }
-        let groups = collectGroups(stack, groupVariants: groupVariants)
+        let appearance = stack["Appearance"] as? String ?? aqua
+        let groups = collectGroups(stack, appearance: appearance, groupVariants: groupVariants)
         var seen = Set<String>()
         let entries = groups.flatMap { g in g.subs.map { (group: g.name, item: $0) } }
             .filter { seen.insert($0.item["Name"] as! String).inserted }
@@ -185,7 +192,7 @@ enum Decomposer {
                 kind = .color
                 if idx == 0 { baseFill = ["solid": displayP3(color)] }
             } else {
-                switch catalog.artwork(named: asset, appearance: aqua) {
+                switch catalog.artwork(named: asset, appearance: appearance) {
                 case .raster(let cg)?:
                     try writePNG(NSBitmapImageRep(cgImage: cg), to: png)
                     kind = .image
